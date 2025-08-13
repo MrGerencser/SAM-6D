@@ -6,6 +6,7 @@ cd ../../../
 ### Download ISM pretrained model
 cd Instance_Segmentation_Model
 python3 download_sam.py
+python3 download_sam2.py
 python3 download_fastsam.py
 python3 download_dinov2.py
 cd ../

@@ -17,6 +17,7 @@ pytorch-lightning
 pycocotools
 distinctipy
 git+https://github.com/facebookresearch/segment-anything.git
+git+https://github.com/facebookresearch/sam2
 ultralytics
 timm
 gorilla-core

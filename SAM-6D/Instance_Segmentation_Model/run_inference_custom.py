@@ -21,7 +21,7 @@ from omegaconf import DictConfig, OmegaConf
 from torchvision.utils import save_image
 import torchvision.transforms as T
 import cv2
-import imageio
+import imageio.v2 as imageio
 import distinctipy
 from skimage.feature import canny
 from skimage.morphology import binary_dilation
@@ -103,6 +103,9 @@ def run_inference(segmentor_model, output_dir, cad_path, rgb_path, depth_path, c
     elif segmentor_model == "fastsam":
         with initialize(version_base=None, config_path="configs/model"):
             cfg.model = compose(config_name='ISM_fastsam.yaml')
+    elif segmentor_model == "sam2":
+        with initialize(version_base=None, config_path="configs/model"):
+            cfg.model = compose(config_name='ISM_sam2.yaml')
     else:
         raise ValueError("The segmentor_model {} is not supported now!".format(segmentor_model))
 
@@ -117,8 +120,11 @@ def run_inference(segmentor_model, output_dir, cad_path, rgb_path, depth_path, c
         model.segmentor_model.predictor.model = (
             model.segmentor_model.predictor.model.to(device)
         )
-    else:
-        model.segmentor_model.model.setup_model(device=device, verbose=True)
+    elif hasattr(model.segmentor_model, "model"):
+        # For FastSAM, we need to set up the YOLO backend
+        if hasattr(model.segmentor_model.model, "setup_model"):
+            model.segmentor_model.model.setup_model(device=device, verbose=True)
+    # SAM2 has no predictor/model setup needed here
     logging.info(f"Moving models to {device} done!")
         
     
@@ -199,6 +205,12 @@ def run_inference(segmentor_model, output_dir, cad_path, rgb_path, depth_path, c
     # final score
     final_score = (semantic_score + appe_scores + geometric_score*visible_ratio) / (1 + 1 + visible_ratio)
 
+    # # Add this to keep only the best detection
+    # if len(final_score) > 0:
+    #     best_idx = torch.argmax(final_score)
+    #     detections.filter(torch.tensor([best_idx]))
+    #     final_score = final_score[best_idx:best_idx+1]
+       
     detections.add_attribute("scores", final_score)
     detections.add_attribute("object_ids", torch.zeros_like(final_score))   
          

@@ -1,0 +1,13 @@
+_target_: model.sam2.SAM2Segmentor
+model_cfg:
+  model_type: sam2_hiera_large
+checkpoint_path: ./checkpoints/sam2/sam2.1_hiera_large.pt
+config_file: configs/sam2.1/sam2.1_hiera_l.yaml
+points_per_batch: 64
+stability_score_thresh: 0.85
+box_nms_thresh: 0.7
+min_mask_region_area: 0
+crop_overlap_ratio: 
+pred_iou_thresh: 0.88
+segmentor_width_size: ${model.segmentor_width_size}
+device: cuda
