@@ -11,7 +11,9 @@ import logging
 import os.path as osp
 from typing import Any, Dict, List, Optional, Tuple
 import pytorch_lightning as pl
-from ultralytics import yolo  # noqa
+#from ultralytics import yolo  # noqa
+from ultralytics import YOLO
+from ultralytics.models.yolo.segment.predict import SegmentationPredictor
 from ultralytics.nn.autobackend import AutoBackend
 
 
@@ -40,7 +42,7 @@ class CustomYOLO(YOLO):
         self.overrides["mode"] = "predict"
         self.overrides["save"] = False
 
-        self.predictor = yolo.v8.segment.SegmentationPredictor(
+        self.predictor = SegmentationPredictor(
             overrides=self.overrides, _callbacks=self.callbacks
         )
 

@@ -182,6 +182,7 @@ class CustomDINOv2(pl.LightningModule):
         3. Resize each proposals to predefined longest image size
         """
         num_proposals = len(masks)
+        masks = masks.clone()  # Clone to avoid in-place operation on inference tensor
         masks.unsqueeze_(1) # [N_proposal, 1, ImgH, ImgW]
         processed_masks = self.rgb_proposal_processor(
             masks, boxes
@@ -256,4 +257,4 @@ class CustomDINOv2(pl.LightningModule):
         patch_features = F.normalize(patch_features * features_mask, dim=-1)
 
         return cls_features, patch_features
-        
+

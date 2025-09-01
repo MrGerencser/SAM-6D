@@ -9,9 +9,18 @@ import trimesh
 parser = argparse.ArgumentParser()
 parser.add_argument('--cad_path', help="The path of CAD model")
 parser.add_argument('--output_dir', help="The path to save CAD templates")
-parser.add_argument('--normalize', default=True, help="Whether to normalize CAD model or not")
-parser.add_argument('--colorize', default=False, help="Whether to colorize CAD model or not")
-parser.add_argument('--base_color', default=0.05, help="The base color used in CAD model")
+
+# robust flag parsing
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    return v.lower() in ("1", "true", "t", "yes", "y")
+
+parser.add_argument('--normalize', type=str2bool, nargs='?', const=True, default=True, help="Whether to normalize CAD model or not")
+parser.add_argument('--colorize',  type=str2bool, nargs='?', const=True, default=False, help="Whether to colorize CAD model or not")
+parser.add_argument('--base_color', type=float, default=0.05, help="Gray value used if base_color_rgb is not provided")
+parser.add_argument('--base_color_rgb', nargs=3, type=float, metavar=('R','G','B'), help="Optional RGB color (0..1)")
+
 args = parser.parse_args()
 
 # set the cnos camera path
@@ -54,7 +63,11 @@ for idx, cam_pose in enumerate(cam_poses):
 
     # assigning material colors to untextured objects
     if args.colorize:
-        color = [args.base_color, args.base_color, args.base_color, 0.]
+        if args.base_color_rgb is not None:
+            r, g, b = args.base_color_rgb
+            color = [r, g, b, 0.0]
+        else:
+            color = [args.base_color, args.base_color, args.base_color, 0.0]
         material = bproc.material.create('obj')
         material.set_principled_shader_value('Base Color', color)
         obj.set_material(0, material)
