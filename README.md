@@ -11,7 +11,7 @@ Please clone the repository locally:
 ```
 git clone https://github.com/JiehongLin/SAM-6D.git
 ```
-Install the environment and download the model checkpoints:
+Install the requirements and download the model checkpoints:
 ```
 cd SAM-6D
 pip install -r requirements.txt
