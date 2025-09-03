@@ -150,8 +150,8 @@ class InstanceSegmentationModel:
             
         finally:
             os.chdir(original_cwd)
-    
-    def infer_segmentation(self, rgb_path, depth_path, cam_path, cad_path, template_dir, output_dir=None):
+
+    def infer_segmentation(self, rgb_path, depth_path, cam_path, cad_path, template_dir, output_dir=None, debug_vis=True):
         """Run inference - EXACTLY like run_inference_custom.py"""
         
         # Change to ISM directory
@@ -222,6 +222,11 @@ class InstanceSegmentationModel:
                 detections_json = convert_npz_to_json(idx=0, list_npz_paths=[save_path + ".npz"])
                 save_json_bop23(save_path + ".json", detections_json)
                 
+                # ADD VISUALIZATION - EXACTLY like run_inference_custom.py
+                if debug_vis:
+                    vis_img = self.visualize(rgb, detections_json, f"{results_dir}/vis_ism.png")
+                    vis_img.save(f"{results_dir}/vis_ism.png")
+
                 return detections_json
             
             # Convert to simple format for return
@@ -262,6 +267,52 @@ class InstanceSegmentationModel:
         batch["cam_intrinsic"] = torch.from_numpy(cam_K).unsqueeze(0).to(self.device)
         batch['depth_scale'] = torch.from_numpy(depth_scale).unsqueeze(0).to(self.device)
         return batch
+
+    def visualize(self, rgb, detections, save_path="tmp.png"):
+        """Visualize detections - EXACTLY like run_inference_custom.py"""
+        import cv2
+        import distinctipy
+        from skimage.feature import canny
+        from skimage.morphology import binary_dilation
+        from segment_anything.utils.amg import rle_to_mask
+        
+        img = rgb.copy()
+        gray = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2GRAY)
+        img = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
+        colors = distinctipy.get_colors(len(detections))
+        alpha = 0.33
+
+        best_score = 0.
+        best_det = None
+        for mask_idx, det in enumerate(detections):
+            if best_score < det['score']:
+                best_score = det['score']
+                best_det = detections[mask_idx]
+
+        mask = rle_to_mask(best_det["segmentation"])
+        edge = canny(mask)
+        edge = binary_dilation(edge, np.ones((2, 2)))
+        obj_id = best_det["category_id"]
+        temp_id = obj_id - 1
+
+        r = int(255*colors[temp_id][0])
+        g = int(255*colors[temp_id][1])
+        b = int(255*colors[temp_id][2])
+        img[mask, 0] = alpha*r + (1 - alpha)*img[mask, 0]
+        img[mask, 1] = alpha*g + (1 - alpha)*img[mask, 1]
+        img[mask, 2] = alpha*b + (1 - alpha)*img[mask, 2]   
+        img[edge, :] = 255
+        
+        img = Image.fromarray(np.uint8(img))
+        img.save(save_path)
+        prediction = Image.open(save_path)
+        
+        # concat side by side in PIL
+        img = np.array(img)
+        concat = Image.new('RGB', (img.shape[1] + prediction.size[0], img.shape[0]))
+        concat.paste(rgb, (0, 0))
+        concat.paste(prediction, (img.shape[1], 0))
+        return concat
 
 # Global model instance (singleton pattern)
 _ism_model = None

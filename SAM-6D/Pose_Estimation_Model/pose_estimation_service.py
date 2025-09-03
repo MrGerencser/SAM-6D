@@ -99,7 +99,7 @@ class PoseEstimationModel:
             os.chdir(original_cwd)
     
     def infer_pose(self, rgb_path, depth_path, cam_path, cad_path, seg_path, 
-                   template_path, det_score_thresh=0.2):
+                   template_path, det_score_thresh=0.2, output_dir=None, debug_vis=True):
         """Run pose inference on given data"""
         
         # Load templates (uses cache if available)
@@ -150,10 +150,53 @@ class PoseEstimationModel:
                 }
                 results.append(result)
             
+            # CREATE VISUALIZATION
+            if output_dir:
+                results_dir = os.path.join(output_dir, 'sam6d_results')
+                os.makedirs(results_dir, exist_ok=True)
+                
+                # Save results
+                with open(os.path.join(results_dir, 'detection_pem.json'), 'w') as f:
+                    json.dump(results, f)
+
+                if debug_vis:
+                    save_path = os.path.join(results_dir, 'vis_pem.png')
+                    valid_masks = pose_scores == pose_scores.max()
+                    K_vis = input_data['K'].detach().cpu().numpy()[valid_masks]
+                    
+                    print(f"DEBUG: Creating visualization at {save_path}")
+                    print(f"DEBUG: valid_masks shape: {valid_masks.shape}, sum: {np.sum(valid_masks)}")
+                    print(f"DEBUG: K_vis shape: {K_vis.shape}")
+                    print(f"DEBUG: img shape: {img.shape}")
+                    print(f"DEBUG: pred_rot[valid_masks] shape: {pred_rot[valid_masks].shape}")
+                    print(f"DEBUG: pred_trans[valid_masks] shape: {pred_trans[valid_masks].shape}")
+                    
+                    vis_img = self.visualize(img, pred_rot[valid_masks], pred_trans[valid_masks], model_points*1000, K_vis, save_path)
+                    vis_img.save(save_path)
+                    print(f"✅ Pose visualization saved to {save_path}")
+                    
+
             return results
             
         finally:
             os.chdir(original_cwd)
+    
+    def visualize(self, rgb, pred_rot, pred_trans, model_points, K, save_path):
+        """Visualize pose estimation results - EXACTLY like run_inference_custom.py"""
+        from draw_utils import draw_detections
+        
+        img = draw_detections(rgb, pred_rot, pred_trans, model_points, K, color=(255, 0, 0))
+        img = Image.fromarray(np.uint8(img))
+        img.save(save_path)
+        prediction = Image.open(save_path)
+        
+        # concat side by side in PIL
+        rgb = Image.fromarray(np.uint8(rgb))
+        img = np.array(img)
+        concat = Image.new('RGB', (img.shape[1] + prediction.size[0], img.shape[0]))
+        concat.paste(rgb, (0, 0))
+        concat.paste(prediction, (img.shape[1], 0))
+        return concat
     
     def _get_templates(self, path):
         """Load templates from path"""
